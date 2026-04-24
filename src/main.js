@@ -31,8 +31,6 @@ class Game {
             
             try {
                 const canvas = document.querySelector('#game-canvas');
-                if (!canvas) throw new Error("Canvas element not found!");
-
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: canvas,
                     antialias: !this.isMobile,
@@ -49,13 +47,13 @@ class Game {
                 
                 if (this.isMobile) {
                     const mobileUI = document.getElementById('mobile-controls');
-                    if (mobileUI) mobileUI.style.display = 'block';
+                    if (mobileUI) mobileUI.style.display = 'flex';
                     document.getElementById('instructions').style.display = 'none';
                     
                     setTimeout(() => {
                         this.initMobileControls();
                         this.updateFlyButtons();
-                    }, 150);
+                    }, 100);
                 }
                 
                 this.animate();
@@ -77,19 +75,19 @@ class Game {
         }
     }
 
-    // ===== MOBILE CONTROLS =====
     initMobileControls() {
-        // Clean up previous instances
-        if (this.moveJoystick) this.moveJoystick.destroy();
-
-        // --- 1. MOVEMENT JOYSTICK (left side) ---
         const moveContainer = document.getElementById('joystick-move');
+        const indicator = document.getElementById('touch-indicator');
+
+        // 1. Minecraft-style Square D-Pad
+        if (this.moveJoystick) this.moveJoystick.destroy();
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
             mode: 'static',
             position: { left: '50%', top: '50%' },
-            color: 'white',
-            size: 100
+            color: 'rgba(255, 255, 255, 0.5)',
+            size: 120,
+            shape: 'square' // Minecraft style
         });
 
         this.moveJoystick.on('move', (evt, data) => {
@@ -103,97 +101,86 @@ class Game {
             this.player.mobileMove.y = 0;
         });
 
-        // --- 2. TOUCH-TO-LOOK (Minecraft Bedrock style) ---
-        this.initTouchLook();
+        // 2. Free Look & Interaction Logic
+        const overlay = document.getElementById('ui-overlay');
+        let lastTouch = null;
+        let touchStartTime = 0;
+        let longPressTimer = null;
 
-        // --- 3. ACTION BUTTONS (right side) ---
-        this.initMobileButtons();
-    }
+        const handleTouchStart = (e) => {
+            const touch = e.touches[0];
+            
+            // Interaction: Start Long Press Timer for Breaking
+            touchStartTime = performance.now();
+            this.player.isLongPress = false;
+            
+            clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                this.player.isLongPress = true;
+                this.player.onLongPressStart();
+            }, 1500); // Threshold of 1.5 seconds as requested
 
-    initTouchLook() {
-        const touchArea = document.getElementById('touch-look-area');
-        if (!touchArea) return;
-
-        // Create the visual touch circle dynamically
-        let touchCircle = document.getElementById('touch-circle');
-        if (!touchCircle) {
-            touchCircle = document.createElement('div');
-            touchCircle.id = 'touch-circle';
-            touchCircle.innerHTML = '<div id="touch-circle-inner"></div>';
-            document.getElementById('mobile-controls').appendChild(touchCircle);
-        }
-
-        let lookTouchId = null;
-        let lastTouchX = 0;
-        let lastTouchY = 0;
-        const lookSensitivity = 0.004;
-
-        touchArea.addEventListener('touchstart', (e) => {
-            // Only track touches that start on the look area (not on joystick/buttons)
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                
-                // Skip if we already have a look touch
-                if (lookTouchId !== null) continue;
-
-                // Skip touches on the left third (joystick area) or right edge (buttons)
-                const screenW = window.innerWidth;
-                if (touch.clientX < screenW * 0.25 || touch.clientX > screenW * 0.85) continue;
-
-                lookTouchId = touch.identifier;
-                lastTouchX = touch.clientX;
-                lastTouchY = touch.clientY;
-
-                // Show circle at touch position
-                touchCircle.style.display = 'block';
-                touchCircle.style.left = touch.clientX + 'px';
-                touchCircle.style.top = touch.clientY + 'px';
+            // Visual Indicator
+            if (indicator) {
+                indicator.style.display = 'block';
+                indicator.style.left = `${touch.clientX - 30}px`;
+                indicator.style.top = `${touch.clientY - 30}px`;
             }
-        }, { passive: true });
-
-        touchArea.addEventListener('touchmove', (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                if (touch.identifier !== lookTouchId) continue;
-
-                const deltaX = touch.clientX - lastTouchX;
-                const deltaY = touch.clientY - lastTouchY;
-
-                // Rotate camera
-                this.camera.rotation.y -= deltaX * lookSensitivity;
-                this.camera.rotation.x -= deltaY * lookSensitivity;
-                this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
-
-                lastTouchX = touch.clientX;
-                lastTouchY = touch.clientY;
-
-                // Move the circle to follow finger
-                touchCircle.style.left = touch.clientX + 'px';
-                touchCircle.style.top = touch.clientY + 'px';
-            }
-        }, { passive: true });
-
-        const endLookTouch = (e) => {
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === lookTouchId) {
-                    lookTouchId = null;
-                    touchCircle.style.display = 'none';
-                }
-            }
+            
+            lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
-        touchArea.addEventListener('touchend', endLookTouch, { passive: true });
-        touchArea.addEventListener('touchcancel', endLookTouch, { passive: true });
-    }
+        const handleTouchMove = (e) => {
+            const touch = e.touches[0];
+            if (lastTouch) {
+                const dx = touch.clientX - lastTouch.x;
+                const dy = touch.clientY - lastTouch.y;
+                
+                // Sensitivity for 90-degree feel
+                this.player.onMobileLook({ 
+                    vector: { x: dx * 0.5, y: dy * 0.5 } 
+                });
+                
+                // Update indicator
+                if (indicator) {
+                    indicator.style.left = `${touch.clientX - 30}px`;
+                    indicator.style.top = `${touch.clientY - 30}px`;
+                }
+            }
+            lastTouch = { x: touch.clientX, y: touch.clientY };
+            
+            // If dragging significantly, cancel the long press interaction? 
+            // In Minecraft you can drag and break.
+        };
 
-    initMobileButtons() {
+        const handleTouchEnd = (e) => {
+            clearTimeout(longPressTimer);
+            if (indicator) indicator.style.display = 'none';
+
+            const pressDuration = performance.now() - touchStartTime;
+            
+            if (!this.player.isLongPress && pressDuration < 300) {
+                // It's a quick tap: Place Block
+                this.player.onMobileTap();
+            }
+            
+            this.player.onLongPressEnd();
+            lastTouch = null;
+        };
+
+        // Important: Listen to the overlay to catch all touches
+        overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
+        overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
+        overlay.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        // Buttons
         const btnJump = document.getElementById('btn-jump');
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
 
         if (btnJump) {
             btnJump.addEventListener('touchstart', (e) => {
-                e.preventDefault();
+                e.stopPropagation(); // Don't trigger look
                 this.player.keys['Space'] = true;
                 const now = performance.now();
                 if (now - this.player.lastSpacePress < 300) {
@@ -203,36 +190,18 @@ class Game {
                 }
                 this.player.lastSpacePress = now;
             });
-            btnJump.addEventListener('touchend', () => {
+            btnJump.addEventListener('touchend', (e) => {
+                e.stopPropagation();
                 this.player.keys['Space'] = false;
-            });
-        }
-
-        if (btnUp) {
-            btnUp.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                this.player.keys['Space'] = true;
-            });
-            btnUp.addEventListener('touchend', () => {
-                this.player.keys['Space'] = false;
-            });
-        }
-
-        if (btnDown) {
-            btnDown.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                this.player.keys['ShiftLeft'] = true;
-            });
-            btnDown.addEventListener('touchend', () => {
-                this.player.keys['ShiftLeft'] = false;
             });
         }
 
         const btnFullscreen = document.getElementById('btn-fullscreen');
         if (btnFullscreen) {
-            btnFullscreen.addEventListener('click', () => {
+            btnFullscreen.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(() => {});
+                    document.documentElement.requestFullscreen();
                 } else {
                     document.exitFullscreen();
                 }
@@ -248,7 +217,6 @@ class Game {
         if (btnDown) btnDown.style.display = display;
     }
 
-    // ===== GAME SYSTEMS =====
     setupLighting() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         this.scene.add(ambientLight);
@@ -266,14 +234,12 @@ class Game {
 
         const loaderFill = document.getElementById('loader-fill');
         const loaderPercentage = document.getElementById('loading-percentage');
-        const statusText = document.querySelector('#loading-status p:last-child');
 
         for (let x = -2; x < 2; x++) {
             for (let z = -2; z < 2; z++) {
                 const progress = Math.floor((generatedChunks / totalChunks) * 100);
                 if (loaderFill) loaderFill.style.width = `${progress}%`;
                 if (loaderPercentage) loaderPercentage.innerText = progress;
-                if (statusText) statusText.innerText = `Gerando terreno ${generatedChunks + 1} de ${totalChunks}...`;
 
                 await new Promise(resolve => requestAnimationFrame(resolve));
                 this.world.generateChunk(x, z);
@@ -282,21 +248,12 @@ class Game {
             }
         }
         
-        if (loaderFill) loaderFill.style.width = '100%';
-        if (loaderPercentage) loaderPercentage.innerText = '100';
-
         const startBtn = document.getElementById('start-btn');
-        const loadingStatus = document.getElementById('loading-status');
-        if (loadingStatus) loadingStatus.style.display = 'none';
         if (startBtn) {
             startBtn.style.display = 'block';
             startBtn.onclick = () => {
-                if (!this.isMobile) {
-                    this.renderer.domElement.requestPointerLock();
-                }
-                const loader = document.getElementById('loading-screen');
-                if (loader) loader.style.opacity = '0';
-                setTimeout(() => { if (loader) loader.remove(); }, 500);
+                this.renderer.domElement.requestPointerLock();
+                document.getElementById('loading-screen').remove();
             };
         }
     }
@@ -318,19 +275,19 @@ class Game {
             const blockType = blockList[i];
             if (blockType) {
                 const block = BLOCKS[blockType];
-                slot.title = block.name;
                 const preview = document.createElement('div');
                 preview.className = 'slot-icon';
                 preview.style.backgroundColor = block.color;
-                preview.style.boxShadow = 'inset -3px -3px 0 rgba(0,0,0,0.3), inset 3px 3px 0 rgba(255,255,255,0.3)';
+                preview.style.boxShadow = 'inset -4px -4px 0 rgba(0,0,0,0.3), inset 4px 4px 0 rgba(255,255,255,0.3)';
                 slot.appendChild(preview);
 
-                // Touch + click for mobile block selection
-                slot.addEventListener('click', () => this.selectSlot(i));
-                slot.addEventListener('touchstart', (e) => {
+                const selectThisSlot = (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     this.selectSlot(i);
-                });
+                };
+                slot.onclick = selectThisSlot;
+                slot.ontouchstart = selectThisSlot;
             }
         });
 
@@ -345,14 +302,14 @@ class Game {
 
     selectSlot(index) {
         const slots = document.querySelectorAll('.slot');
-        const blockList = [
-            BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE, 
-            BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES, 
-            BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
-        ];
         slots.forEach(s => s.classList.remove('active'));
         if (slots[index]) {
             slots[index].classList.add('active');
+            const blockList = [
+                BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE, 
+                BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES, 
+                BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
+            ];
             this.player.selectedBlock = blockList[index];
         }
     }
@@ -360,7 +317,7 @@ class Game {
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
-        if (this.renderer) this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     animate() {
@@ -370,8 +327,4 @@ class Game {
     }
 }
 
-try {
-    new Game();
-} catch (err) {
-    console.error("Game Critical Error:", err);
-}
+new Game();
