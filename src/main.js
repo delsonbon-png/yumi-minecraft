@@ -32,17 +32,26 @@ class Game {
             
             try {
                 const canvas = document.querySelector('#game-canvas');
+                if (!canvas) throw new Error("Canvas not found");
+
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: canvas,
                     antialias: !this.isMobile,
                     alpha: true,
-                    powerPreference: "high-performance"
+                    powerPreference: "high-performance",
+                    precision: this.isMobile ? 'lowp' : 'highp'
                 });
+
+                if (!this.renderer.getContext()) {
+                    throw new Error("WebGL context creation failed. Update your browser or graphics drivers.");
+                }
+
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(this.isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
                 
                 this.setupLighting();
                 await this.initWorld();
+                
                 this.initPlayer();
                 this.initUI();
                 
@@ -63,11 +72,15 @@ class Game {
     }
 
     showError(err) {
-        console.error("Game Initialization Error:", err);
+        console.error("Game Critical Error:", err);
         const errorLog = document.getElementById('error-log');
-        if (errorLog) {
-            errorLog.style.display = 'block';
-            errorLog.innerText = "Erro: " + err.message;
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+            loadingScreen.innerHTML += `<div style="color:#ff4444; padding:20px; text-align:center;">
+                <h3>ERRO CRÍTICO</h3>
+                <p>${err.message}</p>
+                <button onclick="location.reload()" style="padding:10px 20px; background:#fff; border:none; border-radius:5px; cursor:pointer;">Reiniciar Jogo</button>
+            </div>`;
         }
     }
 
@@ -78,7 +91,6 @@ class Game {
         const moveContainer = document.getElementById('joystick-move');
         const indicator = document.getElementById('touch-indicator');
 
-        // 1. Minecraft-style Square D-Pad
         if (this.moveJoystick) this.moveJoystick.destroy();
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
@@ -86,7 +98,7 @@ class Game {
             position: { left: '50%', top: '50%' },
             color: 'rgba(255, 255, 255, 0.4)',
             size: 150,
-            shape: 'square' // Minecraft style
+            shape: 'square'
         });
 
         this.moveJoystick.on('move', (evt, data) => {
@@ -100,15 +112,12 @@ class Game {
             this.player.mobileMove.y = 0;
         });
 
-        // 2. Free Look & Interaction Logic
         let lastTouch = null;
         let touchStartTime = 0;
         let longPressTimer = null;
 
         const handleTouchStart = (e) => {
             const touch = e.touches[0];
-            
-            // IF touching the joystick area or UI buttons, let them handle it
             const isUI = e.target.closest('#joystick-move') || 
                          e.target.closest('.mobile-btn') || 
                          e.target.closest('.slot') ||
@@ -117,9 +126,7 @@ class Game {
                          
             if (isUI) return;
 
-            e.preventDefault(); // Only prevent default if we are starting a "look" action
-
-            // Interaction: Start Long Press Timer for Breaking
+            e.preventDefault();
             touchStartTime = performance.now();
             this.player.isLongPress = false;
             
@@ -127,66 +134,52 @@ class Game {
             longPressTimer = setTimeout(() => {
                 this.player.isLongPress = true;
                 this.player.onLongPressStart();
-            }, 1500);
+            }, 1000); // 1.0s to feel faster but still deliberate
 
-            // Visual Indicator
             if (indicator) {
                 indicator.style.display = 'block';
                 indicator.style.left = `${touch.clientX - 30}px`;
                 indicator.style.top = `${touch.clientY - 30}px`;
             }
-            
             lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
         const handleTouchMove = (e) => {
             if (!lastTouch) return;
             const touch = e.touches[0];
-            
             const dx = touch.clientX - lastTouch.x;
             const dy = touch.clientY - lastTouch.y;
             
-            this.player.onMobileLook({ 
-                vector: { x: dx * 0.5, y: dy * 0.5 } 
-            });
+            this.player.onMobileLook({ vector: { x: dx * 0.5, y: dy * 0.5 } });
             
             if (indicator) {
                 indicator.style.left = `${touch.clientX - 30}px`;
                 indicator.style.top = `${touch.clientY - 30}px`;
             }
-            
             lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
         const handleTouchEnd = (e) => {
             if (!lastTouch && e.touches.length > 0) return;
-            
             clearTimeout(longPressTimer);
             if (indicator) indicator.style.display = 'none';
 
             const pressDuration = performance.now() - touchStartTime;
-            
             if (lastTouch && !this.player.isLongPress && pressDuration < 300) {
                 this.player.onMobileTap();
             }
-            
             this.player.onLongPressEnd();
             lastTouch = null;
         };
 
-        // Attach to document for true full-screen coverage
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-        // Buttons
         const btnJump = document.getElementById('btn-jump');
-        const btnUp = document.getElementById('btn-up');
-        const btnDown = document.getElementById('btn-down');
-
         if (btnJump) {
             btnJump.addEventListener('touchstart', (e) => {
-                e.stopPropagation(); // Don't trigger look
+                e.stopPropagation();
                 this.player.keys['Space'] = true;
                 const now = performance.now();
                 if (now - this.player.lastSpacePress < 300) {
@@ -199,18 +192,6 @@ class Game {
             btnJump.addEventListener('touchend', (e) => {
                 e.stopPropagation();
                 this.player.keys['Space'] = false;
-            });
-        }
-
-        const btnFullscreen = document.getElementById('btn-fullscreen');
-        if (btnFullscreen) {
-            btnFullscreen.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen();
-                } else {
-                    document.exitFullscreen();
-                }
             });
         }
     }
@@ -257,6 +238,9 @@ class Game {
             }
         }
         
+        if (loaderFill) loaderFill.style.width = '100%';
+        if (loaderPercentage) loaderPercentage.innerText = '100';
+
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
             startBtn.style.display = 'block';
@@ -266,8 +250,6 @@ class Game {
                 }
                 const loader = document.getElementById('loading-screen');
                 if (loader) loader.remove();
-                
-                // Final check to ensure UI is ready
                 if (this.isMobile) {
                     this.initMobileControls();
                     this.updateFlyButtons();
@@ -340,8 +322,10 @@ class Game {
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        this.player.update();
-        this.renderer.render(this.scene, this.camera);
+        if (this.renderer) {
+            this.player.update();
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 }
 
