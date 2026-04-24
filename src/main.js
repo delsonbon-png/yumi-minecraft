@@ -10,28 +10,15 @@ class Game {
         this.scene.background = new THREE.Color('#87ceeb'); // Sky blue
         
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.rotation.order = 'YXZ'; // Important for FPS controls
+        this.camera.rotation.order = 'YXZ';
         
-        // Detect Mobile (Will be overridden by user selection)
         this.isMobile = false;
-        
-        // Data and controls will be initialized in init()
         this.init();
         
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
-    checkWebGL() {
-        try {
-            const canvas = document.createElement('canvas');
-            return !!(window.WebGL2RenderingContext || window.WebGLRenderingContext);
-        } catch (e) {
-            return false;
-        }
-    }
-
     async init() {
-        // Mode Selection Listeners
         const desktopBtn = document.getElementById('mode-desktop-btn');
         const mobileBtn = document.getElementById('mode-mobile-btn');
         const modeSelection = document.getElementById('mode-selection');
@@ -65,7 +52,6 @@ class Game {
                     if (mobileUI) mobileUI.style.display = 'flex';
                     document.getElementById('instructions').style.display = 'none';
                     
-                    // Small delay to ensure DOM is updated for nipplejs
                     setTimeout(() => {
                         this.initMobileControls();
                         this.updateFlyButtons();
@@ -95,30 +81,48 @@ class Game {
         const moveContainer = document.getElementById('joystick-move');
         const lookContainer = document.getElementById('joystick-look');
 
+        // Clean up any existing instances
+        if (this.moveJoystick) this.moveJoystick.destroy();
+        if (this.lookJoystick) this.lookJoystick.destroy();
+
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
             mode: 'static',
-            position: { left: '50%', bottom: '50%' },
-            color: 'white'
+            position: { left: '50%', top: '50%' },
+            color: 'white',
+            size: 100
         });
 
         this.lookJoystick = nipplejs.create({
             zone: lookContainer,
             mode: 'static',
-            position: { left: '50%', bottom: '50%' },
-            color: 'rgba(255, 255, 255, 0.5)'
+            position: { left: '50%', top: '50%' },
+            color: 'rgba(255, 255, 255, 0.5)',
+            size: 100
         });
 
-        // Pass joystick data to player
+        // Use direct vector updates
         this.moveJoystick.on('move', (evt, data) => {
-            if (data && data.vector) this.player.onMobileMove(data);
+            if (data && data.vector) {
+                this.player.mobileMove.x = data.vector.x;
+                this.player.mobileMove.y = -data.vector.y;
+            }
         });
-        this.moveJoystick.on('end', () => this.player.onMobileMoveEnd());
+        this.moveJoystick.on('end', () => {
+            this.player.mobileMove.x = 0;
+            this.player.mobileMove.y = 0;
+        });
         
         this.lookJoystick.on('move', (evt, data) => {
-            if (data && data.vector) this.player.onMobileLook(data);
+            if (data && data.vector) {
+                this.player.mobileLook.x = data.vector.x;
+                this.player.mobileLook.y = data.vector.y;
+            }
         });
-        this.lookJoystick.on('end', () => this.player.onMobileLookEnd());
+        this.lookJoystick.on('end', () => {
+            this.player.mobileLook.x = 0;
+            this.player.mobileLook.y = 0;
+        });
 
         // Buttons
         const btnJump = document.getElementById('btn-jump');
@@ -129,13 +133,11 @@ class Game {
             btnJump.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 this.player.keys['Space'] = true;
-                
-                // Double-tap detection for mobile
                 const now = performance.now();
                 if (now - this.player.lastSpacePress < 300) {
                     this.player.isFlying = !this.player.isFlying;
                     this.player.verticalVelocity = 0;
-                    updateFlyButtons();
+                    this.updateFlyButtons();
                 }
                 this.player.lastSpacePress = now;
             });
@@ -147,7 +149,7 @@ class Game {
         if (btnUp) {
             btnUp.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                this.player.keys['Space'] = true; // Use space for up
+                this.player.keys['Space'] = true;
             });
             btnUp.addEventListener('touchend', () => {
                 this.player.keys['Space'] = false;
@@ -189,7 +191,6 @@ class Game {
     setupLighting() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         this.scene.add(ambientLight);
-
         const sun = new THREE.DirectionalLight(0xffffff, 0.8);
         sun.position.set(50, 100, 50);
         this.scene.add(sun);
@@ -197,7 +198,6 @@ class Game {
 
     async initWorld() {
         this.world = new World(this.scene);
-        
         const chunksX = this.isMobile ? 2 : 4;
         const chunksZ = this.isMobile ? 2 : 4;
         const totalChunks = chunksX * chunksZ;
@@ -209,19 +209,14 @@ class Game {
 
         for (let x = -2; x < 2; x++) {
             for (let z = -2; z < 2; z++) {
-                // Update UI BEFORE generation to show immediate progress
                 const progress = Math.floor((generatedChunks / totalChunks) * 100);
                 if (loaderFill) loaderFill.style.width = `${progress}%`;
                 if (loaderPercentage) loaderPercentage.innerText = progress;
                 if (statusText) statusText.innerText = `Gerando terreno ${generatedChunks + 1} de ${totalChunks}...`;
 
-                // Yield to UI thread
                 await new Promise(resolve => requestAnimationFrame(resolve));
-                
                 this.world.generateChunk(x, z);
                 generatedChunks++;
-                
-                // Small delay to keep UI responsive
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
         }
@@ -229,10 +224,8 @@ class Game {
         if (loaderFill) loaderFill.style.width = '100%';
         if (loaderPercentage) loaderPercentage.innerText = '100';
 
-        // Setup Start button when world is ready
         const startBtn = document.getElementById('start-btn');
         const loadingStatus = document.getElementById('loading-status');
-        
         if (loadingStatus) loadingStatus.style.display = 'none';
         if (startBtn) {
             startBtn.style.display = 'block';
@@ -253,51 +246,53 @@ class Game {
     initUI() {
         const hotbarSlots = document.querySelectorAll('.slot');
         const blockList = [
-            BLOCK_TYPES.GRASS,
-            BLOCK_TYPES.DIRT,
-            BLOCK_TYPES.STONE,
-            BLOCK_TYPES.COBBLESTONE,
-            BLOCK_TYPES.OAK_LOG,
-            BLOCK_TYPES.OAK_LEAVES,
-            BLOCK_TYPES.GLASS,
-            BLOCK_TYPES.BRICKS,
-            BLOCK_TYPES.SAND
+            BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE,
+            BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES,
+            BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
         ];
 
-        // Assign blocks to slots
         hotbarSlots.forEach((slot, i) => {
             const blockType = blockList[i];
             if (blockType) {
                 const block = BLOCKS[blockType];
                 slot.title = block.name;
-                
-                // Create a pixelated preview using a small canvas or just CSS
                 const preview = document.createElement('div');
                 preview.className = 'slot-icon';
-                preview.style.width = '40px';
-                preview.style.height = '40px';
                 preview.style.backgroundColor = block.color;
                 preview.style.boxShadow = 'inset -4px -4px 0 rgba(0,0,0,0.3), inset 4px 4px 0 rgba(255,255,255,0.3)';
-                preview.style.border = '2px solid rgba(0,0,0,0.2)';
                 slot.appendChild(preview);
 
-                const label = document.createElement('span');
-                label.innerText = i + 1;
-                label.style.position = 'absolute';
-                label.style.bottom = '2px';
-                label.style.right = '4px';
-                label.style.fontSize = '10px';
-                label.style.color = 'rgba(255,255,255,0.5)';
-                slot.appendChild(label);
+                // Touch and Click for Mobile selection
+                const selectThisSlot = (e) => {
+                    e.preventDefault();
+                    this.selectSlot(i);
+                };
+                slot.onclick = selectThisSlot;
+                slot.ontouchstart = selectThisSlot;
             }
         });
 
-        window.addEventListener('blockChange', (e) => {
-            const selectedIdx = blockList.indexOf(e.detail.block);
-            hotbarSlots.forEach((slot, i) => {
-                slot.classList.toggle('active', i === selectedIdx);
-            });
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '9') {
+                this.selectSlot(parseInt(e.key) - 1);
+            }
         });
+        
+        this.selectSlot(0); // Set initial slot
+    }
+
+    selectSlot(index) {
+        const slots = document.querySelectorAll('.slot');
+        slots.forEach(s => s.classList.remove('active'));
+        if (slots[index]) {
+            slots[index].classList.add('active');
+            const blockList = [
+                BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE, 
+                BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES, 
+                BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
+            ];
+            this.player.selectedBlock = blockList[index];
+        }
     }
 
     onWindowResize() {
@@ -317,11 +312,4 @@ try {
     new Game();
 } catch (err) {
     console.error("Game Critical Error:", err);
-    setTimeout(() => {
-        const errorLog = document.getElementById('error-log');
-        if (errorLog) {
-            errorLog.style.display = 'block';
-            errorLog.innerText = "Critical Error: " + err.message + "\nYour browser might not support WebGL.";
-        }
-    }, 100);
 }
