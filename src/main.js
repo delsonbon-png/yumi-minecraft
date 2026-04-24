@@ -157,10 +157,23 @@ class Game {
         if (btnDown) {
             btnDown.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                this.player.keys['ShiftLeft'] = true; // Use shift for down
+                this.player.keys['ShiftLeft'] = true;
             });
             btnDown.addEventListener('touchend', () => {
                 this.player.keys['ShiftLeft'] = false;
+            });
+        }
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        if (btnFullscreen) {
+            btnFullscreen.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
             });
         }
     }

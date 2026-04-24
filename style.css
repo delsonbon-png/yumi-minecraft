@@ -304,20 +304,44 @@ body {
     box-shadow: 0 2px 0 rgba(0,0,0,0.5);
 }
 
-.mobile-btn.main-btn {
-    width: 72px;
-    height: 72px;
+.mobile-btn.utility-btn {
+    width: 44px;
+    height: 44px;
+    background: rgba(0, 0, 0, 0.6);
 }
 
-.mobile-btn.fly-controls {
-    background: rgba(0, 0, 0, 0.3);
-    width: 60px;
-    height: 48px;
+.mobile-btn.utility-btn svg {
+    width: 20px;
+    height: 20px;
 }
 
-#btn-mode.active {
-    background: #ef4444; 
-    border-color: #f87171;
+/* Landscape Optimizations */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    #hotbar {
+        bottom: 5px;
+        transform: translateX(-50%) scale(0.7);
+        transform-origin: bottom center;
+    }
+
+    #joystick-move, #joystick-look {
+        bottom: 10px;
+        width: 100px;
+        height: 100px;
+    }
+
+    #joystick-move { left: 10px; }
+    #joystick-look { right: 10px; }
+
+    #mobile-buttons {
+        bottom: 10px;
+        right: 120px;
+        gap: 4px;
+    }
+
+    .mobile-btn {
+        width: 48px;
+        height: 48px;
+    }
 }
 
 /* Mode Selection */
