@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yumi's Minecraft - Creative Mode</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Outfit:wght@500;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="ui-overlay">
+            <div id="crosshair"></div>
+            
+            <div id="hud-top">
+                <div class="info-card">
+                    <span class="label">WORLD</span>
+                    <span class="value">Creative Sandbox</span>
+                </div>
+                <div class="info-card">
+                    <span class="label">MODE</span>
+                    <span class="value">Building</span>
+                </div>
+            </div>
+
+            <div id="hotbar-container">
+                <div class="hotbar" id="hotbar">
+                    <div class="slot active" data-index="0"></div>
+                    <div class="slot" data-index="1"></div>
+                    <div class="slot" data-index="2"></div>
+                    <div class="slot" data-index="3"></div>
+                    <div class="slot" data-index="4"></div>
+                    <div class="slot" data-index="5"></div>
+                    <div class="slot" data-index="6"></div>
+                    <div class="slot" data-index="7"></div>
+                    <div class="slot" data-index="8"></div>
+                </div>
+            </div>
+
+            <div id="instructions">
+                <p>WASD to Move | SPACE to Jump/Fly</p>
+                <p>LEFT CLICK Break | RIGHT CLICK Place</p>
+                <p>1-9 to Select Blocks | ESC for Cursor</p>
+            </div>
+        </div>
+
+        <div id="loading-screen">
+            <h1 class="premium-title">YUMI MINECRAFT</h1>
+            
+            <!-- Mode Selection -->
+            <div id="mode-selection">
+                <p class="selection-text">Select your device style</p>
+                <div class="selection-buttons">
+                    <button id="mode-desktop-btn" class="selection-btn">
+                        <svg viewBox="0 0 24 24"><path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7l-2 3v1h8v-1l-2-3h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 12H3V4h18v10z"/></svg>
+                        <span>DESKTOP</span>
+                    </button>
+                    <button id="mode-mobile-btn" class="selection-btn">
+                        <svg viewBox="0 0 24 24"><path d="M17 1H7c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zM7 4h10v14H7V4z"/></svg>
+                        <span>MOBILE</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading-status" style="display: none;">
+                <div class="loader" id="loader-bar">
+                    <div id="loader-fill"></div>
+                </div>
+                <p><span id="loading-percentage">0</span>%</p>
+                <p>Generating voxel world...</p>
+            </div>
+            <button id="start-btn" style="display: none;" class="premium-button">START BUILDING</button>
+            <div id="error-log" style="display: none; color: #ff5555; font-size: 14px; margin-top: 20px; font-family: sans-serif; max-width: 80%; text-align: center; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;"></div>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls" style="display: none;">
+            <div id="joystick-move"></div>
+            <div id="joystick-look"></div>
+            <div id="mobile-buttons">
+                <button id="btn-up" class="mobile-btn fly-controls" style="display: none;">
+                    <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+                </button>
+                <button id="btn-jump" class="mobile-btn main-btn">
+                    <svg viewBox="0 0 24 24"><path d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2zm0 18c4.41 0 8-3.59 8-8s-3.59-8-8-8-8 3.59-8 8 3.59 8 8 8zm-1-13h2v10h-2V7z"/></svg>
+                </button>
+                <button id="btn-down" class="mobile-btn fly-controls" style="display: none;">
+                    <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
