@@ -253,16 +253,17 @@ body {
 }
 
 #joystick-move, #joystick-look {
-    width: 150px;
-    height: 150px;
+    width: 120px;
+    height: 120px;
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
     pointer-events: auto;
     touch-action: none;
+    z-index: 60;
 }
 
-#joystick-move { left: 20px; }
-#joystick-look { right: 20px; }
+#joystick-move { left: 30px; }
+#joystick-look { right: 30px; }
 
 #mobile-buttons {
     position: absolute;

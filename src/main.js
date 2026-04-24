@@ -49,8 +49,8 @@ class Game {
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: canvas,
                     antialias: !this.isMobile,
-                    powerPreference: "high-performance",
-                    precision: this.isMobile ? "lowp" : "mediump"
+                    alpha: true,
+                    powerPreference: "high-performance"
                 });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(this.isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
@@ -110,10 +110,14 @@ class Game {
         });
 
         // Pass joystick data to player
-        this.moveJoystick.on('move', (evt, data) => this.player.onMobileMove(data));
+        this.moveJoystick.on('move', (evt, data) => {
+            if (data && data.vector) this.player.onMobileMove(data);
+        });
         this.moveJoystick.on('end', () => this.player.onMobileMoveEnd());
         
-        this.lookJoystick.on('move', (evt, data) => this.player.onMobileLook(data));
+        this.lookJoystick.on('move', (evt, data) => {
+            if (data && data.vector) this.player.onMobileLook(data);
+        });
         this.lookJoystick.on('end', () => this.player.onMobileLookEnd());
 
         // Buttons
