@@ -112,10 +112,13 @@ body {
 }
 
 #hotbar-container {
-    align-self: center;
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
     pointer-events: auto;
-    margin-bottom: 5px;
-    z-index: 40;
+    z-index: 50;
+    width: auto;
 }
 
 .hotbar {

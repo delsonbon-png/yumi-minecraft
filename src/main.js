@@ -85,8 +85,8 @@ class Game {
             zone: moveContainer,
             mode: 'static',
             position: { left: '50%', top: '50%' },
-            color: 'rgba(255, 255, 255, 0.5)',
-            size: 120,
+            color: 'rgba(255, 255, 255, 0.4)',
+            size: 150,
             shape: 'square' // Minecraft style
         });
 
@@ -109,8 +109,13 @@ class Game {
         const handleTouchStart = (e) => {
             const touch = e.touches[0];
             
-            // Ignore if touching a button or the joystick
-            if (e.target.closest('.mobile-btn') || e.target.closest('#joystick-move')) return;
+            // IF touching the joystick area, DO NOT prevent default and let nipplejs handle it
+            const isJoystick = e.target.closest('#joystick-move');
+            if (isJoystick || e.target.closest('.mobile-btn') || e.target.closest('.slot')) {
+                return;
+            }
+
+            e.preventDefault(); // Only prevent default if we are starting a "look" action
 
             // Interaction: Start Long Press Timer for Breaking
             touchStartTime = performance.now();
