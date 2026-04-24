@@ -102,7 +102,6 @@ class Game {
         });
 
         // 2. Free Look & Interaction Logic
-        const overlay = document.getElementById('ui-overlay');
         let lastTouch = null;
         let touchStartTime = 0;
         let longPressTimer = null;
@@ -110,6 +109,9 @@ class Game {
         const handleTouchStart = (e) => {
             const touch = e.touches[0];
             
+            // Ignore if touching a button or the joystick
+            if (e.target.closest('.mobile-btn') || e.target.closest('#joystick-move')) return;
+
             // Interaction: Start Long Press Timer for Breaking
             touchStartTime = performance.now();
             this.player.isLongPress = false;
@@ -118,7 +120,7 @@ class Game {
             longPressTimer = setTimeout(() => {
                 this.player.isLongPress = true;
                 this.player.onLongPressStart();
-            }, 1500); // Threshold of 1.5 seconds as requested
+            }, 1500);
 
             // Visual Indicator
             if (indicator) {
@@ -131,36 +133,33 @@ class Game {
         };
 
         const handleTouchMove = (e) => {
+            if (!lastTouch) return;
             const touch = e.touches[0];
-            if (lastTouch) {
-                const dx = touch.clientX - lastTouch.x;
-                const dy = touch.clientY - lastTouch.y;
-                
-                // Sensitivity for 90-degree feel
-                this.player.onMobileLook({ 
-                    vector: { x: dx * 0.5, y: dy * 0.5 } 
-                });
-                
-                // Update indicator
-                if (indicator) {
-                    indicator.style.left = `${touch.clientX - 30}px`;
-                    indicator.style.top = `${touch.clientY - 30}px`;
-                }
-            }
-            lastTouch = { x: touch.clientX, y: touch.clientY };
             
-            // If dragging significantly, cancel the long press interaction? 
-            // In Minecraft you can drag and break.
+            const dx = touch.clientX - lastTouch.x;
+            const dy = touch.clientY - lastTouch.y;
+            
+            this.player.onMobileLook({ 
+                vector: { x: dx * 0.5, y: dy * 0.5 } 
+            });
+            
+            if (indicator) {
+                indicator.style.left = `${touch.clientX - 30}px`;
+                indicator.style.top = `${touch.clientY - 30}px`;
+            }
+            
+            lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
         const handleTouchEnd = (e) => {
+            if (!lastTouch && e.touches.length > 0) return;
+            
             clearTimeout(longPressTimer);
             if (indicator) indicator.style.display = 'none';
 
             const pressDuration = performance.now() - touchStartTime;
             
-            if (!this.player.isLongPress && pressDuration < 300) {
-                // It's a quick tap: Place Block
+            if (lastTouch && !this.player.isLongPress && pressDuration < 300) {
                 this.player.onMobileTap();
             }
             
@@ -168,10 +167,10 @@ class Game {
             lastTouch = null;
         };
 
-        // Important: Listen to the overlay to catch all touches
-        overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
-        overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
-        overlay.addEventListener('touchend', handleTouchEnd, { passive: false });
+        // Attach to document for true full-screen coverage
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
         // Buttons
         const btnJump = document.getElementById('btn-jump');
