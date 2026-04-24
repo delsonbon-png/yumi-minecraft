@@ -258,6 +258,7 @@ body {
     position: absolute;
     bottom: 20px;
     pointer-events: auto;
+    touch-action: none;
 }
 
 #joystick-move { left: 20px; }

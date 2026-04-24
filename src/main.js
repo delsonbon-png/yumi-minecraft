@@ -61,9 +61,15 @@ class Game {
                 this.initUI();
                 
                 if (this.isMobile) {
-                    this.initMobileControls();
-                    document.getElementById('mobile-controls').style.display = 'flex';
+                    const mobileUI = document.getElementById('mobile-controls');
+                    if (mobileUI) mobileUI.style.display = 'flex';
                     document.getElementById('instructions').style.display = 'none';
+                    
+                    // Small delay to ensure DOM is updated for nipplejs
+                    setTimeout(() => {
+                        this.initMobileControls();
+                        this.updateFlyButtons();
+                    }, 100);
                 }
                 
                 this.animate();
@@ -115,12 +121,6 @@ class Game {
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
 
-        const updateFlyButtons = () => {
-            const display = this.player.isFlying ? 'flex' : 'none';
-            if (btnUp) btnUp.style.display = display;
-            if (btnDown) btnDown.style.display = display;
-        };
-
         if (btnJump) {
             btnJump.addEventListener('touchstart', (e) => {
                 e.preventDefault();
@@ -159,6 +159,14 @@ class Game {
                 this.player.keys['ShiftLeft'] = false;
             });
         }
+    }
+
+    updateFlyButtons() {
+        const btnUp = document.getElementById('btn-up');
+        const btnDown = document.getElementById('btn-down');
+        const display = this.player.isFlying ? 'flex' : 'none';
+        if (btnUp) btnUp.style.display = display;
+        if (btnDown) btnDown.style.display = display;
     }
 
     setupLighting() {
