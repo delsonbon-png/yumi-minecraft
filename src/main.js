@@ -239,8 +239,11 @@ class Game {
         const loaderFill = document.getElementById('loader-fill');
         const loaderPercentage = document.getElementById('loading-percentage');
 
-        for (let x = -2; x < 2; x++) {
-            for (let z = -2; z < 2; z++) {
+        const halfX = Math.floor(chunksX / 2);
+        const halfZ = Math.floor(chunksZ / 2);
+
+        for (let x = -halfX; x < halfX; x++) {
+            for (let z = -halfZ; z < halfZ; z++) {
                 const progress = Math.floor((generatedChunks / totalChunks) * 100);
                 if (loaderFill) loaderFill.style.width = `${progress}%`;
                 if (loaderPercentage) loaderPercentage.innerText = progress;
@@ -248,7 +251,7 @@ class Game {
                 await new Promise(resolve => requestAnimationFrame(resolve));
                 this.world.generateChunk(x, z);
                 generatedChunks++;
-                await new Promise(resolve => setTimeout(resolve, 10));
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
         
