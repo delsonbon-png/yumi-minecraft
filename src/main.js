@@ -243,18 +243,32 @@ class Game {
 
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
+            console.log("World generated, showing start button");
             startBtn.style.display = 'block';
-            startBtn.onclick = () => {
+            startBtn.style.zIndex = '1001';
+            
+            const handleStart = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Start button clicked!");
+                
                 if (!this.isMobile && this.renderer.domElement.requestPointerLock) {
                     this.renderer.domElement.requestPointerLock();
                 }
                 const loader = document.getElementById('loading-screen');
-                if (loader) loader.remove();
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.remove(), 200);
+                }
+                
                 if (this.isMobile) {
                     this.initMobileControls();
                     this.updateFlyButtons();
                 }
             };
+
+            startBtn.addEventListener('pointerdown', handleStart);
+            startBtn.addEventListener('click', handleStart);
         }
     }
 
