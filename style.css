@@ -268,11 +268,12 @@ body {
 #mobile-buttons {
     position: absolute;
     bottom: 40px;
-    right: 40px;
+    right: 180px; /* Moved left to avoid right joystick */
     display: flex;
     flex-direction: column;
     gap: 8px;
     pointer-events: auto;
+    z-index: 70;
 }
 
 .mobile-btn {
