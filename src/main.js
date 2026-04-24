@@ -259,8 +259,16 @@ class Game {
         if (startBtn) {
             startBtn.style.display = 'block';
             startBtn.onclick = () => {
-                this.renderer.domElement.requestPointerLock();
-                document.getElementById('loading-screen').remove();
+                if (!this.isMobile && this.renderer.domElement.requestPointerLock) {
+                    this.renderer.domElement.requestPointerLock();
+                }
+                const loader = document.getElementById('loading-screen');
+                if (loader) loader.remove();
+                
+                // Final check to ensure UI is ready
+                if (this.isMobile) {
+                    this.initMobileControls();
+                }
             };
         }
     }
