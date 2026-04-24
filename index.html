@@ -51,7 +51,6 @@
         <div id="loading-screen">
             <h1 class="premium-title">YUMI MINECRAFT</h1>
             
-            <!-- Mode Selection -->
             <div id="mode-selection">
                 <p class="selection-text">Select your device style</p>
                 <div class="selection-buttons">
@@ -79,19 +78,24 @@
 
         <!-- Mobile Controls -->
         <div id="mobile-controls" style="display: none;">
+            <!-- Touch look area (covers the whole screen, behind other controls) -->
+            <div id="touch-look-area"></div>
+
+            <!-- Movement joystick (LEFT side) -->
             <div id="joystick-move"></div>
-            <!-- Camera rotation is handled by dragging on the screen -->
+
+            <!-- Action buttons (RIGHT side) -->
             <div id="mobile-buttons">
                 <button id="btn-fullscreen" class="mobile-btn utility-btn" title="Fullscreen">
                     <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
                 </button>
-                <button id="btn-up" class="mobile-btn fly-controls" style="display: none;">
+                <button id="btn-up" class="mobile-btn fly-btn" style="display: none;">
                     <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
                 </button>
-                <button id="btn-jump" class="mobile-btn main-btn">
-                    <svg viewBox="0 0 24 24"><path d="M12 2c5.52 0 10 4.48 10 10s-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2zm0 18c4.41 0 8-3.59 8-8s-3.59-8-8-8-8 3.59-8 8 3.59 8 8 8zm-1-13h2v10h-2V7z"/></svg>
+                <button id="btn-jump" class="mobile-btn jump-btn">
+                    <svg viewBox="0 0 24 24"><path d="M13 5.41V21h-2V5.41L4.71 12.12 3.29 10.71 12 2l8.71 8.71-1.41 1.41L13 5.41z"/></svg>
                 </button>
-                <button id="btn-down" class="mobile-btn fly-controls" style="display: none;">
+                <button id="btn-down" class="mobile-btn fly-btn" style="display: none;">
                     <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
                 </button>
             </div>

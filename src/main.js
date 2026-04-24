@@ -7,7 +7,7 @@ import nipplejs from 'nipplejs';
 class Game {
     constructor() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color('#87ceeb'); // Sky blue
+        this.scene.background = new THREE.Color('#87ceeb');
         
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.rotation.order = 'YXZ';
@@ -49,13 +49,13 @@ class Game {
                 
                 if (this.isMobile) {
                     const mobileUI = document.getElementById('mobile-controls');
-                    if (mobileUI) mobileUI.style.display = 'flex';
+                    if (mobileUI) mobileUI.style.display = 'block';
                     document.getElementById('instructions').style.display = 'none';
                     
                     setTimeout(() => {
                         this.initMobileControls();
                         this.updateFlyButtons();
-                    }, 100);
+                    }, 150);
                 }
                 
                 this.animate();
@@ -77,15 +77,17 @@ class Game {
         }
     }
 
+    // ===== MOBILE CONTROLS =====
     initMobileControls() {
+        // Clean up previous instances
         if (this.moveJoystick) this.moveJoystick.destroy();
 
+        // --- 1. MOVEMENT JOYSTICK (left side) ---
         const moveContainer = document.getElementById('joystick-move');
-
-        // Dynamic Joystick on the left side
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
-            mode: 'dynamic',
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
             color: 'white',
             size: 100
         });
@@ -101,55 +103,90 @@ class Game {
             this.player.mobileMove.y = 0;
         });
 
-        // Touch Drag to Look (Right side or middle)
+        // --- 2. TOUCH-TO-LOOK (Minecraft Bedrock style) ---
+        this.initTouchLook();
+
+        // --- 3. ACTION BUTTONS (right side) ---
+        this.initMobileButtons();
+    }
+
+    initTouchLook() {
+        const touchArea = document.getElementById('touch-look-area');
+        if (!touchArea) return;
+
+        // Create the visual touch circle dynamically
+        let touchCircle = document.getElementById('touch-circle');
+        if (!touchCircle) {
+            touchCircle = document.createElement('div');
+            touchCircle.id = 'touch-circle';
+            touchCircle.innerHTML = '<div id="touch-circle-inner"></div>';
+            document.getElementById('mobile-controls').appendChild(touchCircle);
+        }
+
+        let lookTouchId = null;
         let lastTouchX = 0;
         let lastTouchY = 0;
+        const lookSensitivity = 0.004;
 
-        const handleTouchStart = (e) => {
-            const touch = e.touches[0];
-            // Start dragging if not on a button/hotbar (handled by z-index or manual check)
-            if (touch.clientX > window.innerWidth / 2) {
+        touchArea.addEventListener('touchstart', (e) => {
+            // Only track touches that start on the look area (not on joystick/buttons)
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                
+                // Skip if we already have a look touch
+                if (lookTouchId !== null) continue;
+
+                // Skip touches on the left third (joystick area) or right edge (buttons)
+                const screenW = window.innerWidth;
+                if (touch.clientX < screenW * 0.25 || touch.clientX > screenW * 0.85) continue;
+
+                lookTouchId = touch.identifier;
                 lastTouchX = touch.clientX;
                 lastTouchY = touch.clientY;
+
+                // Show circle at touch position
+                touchCircle.style.display = 'block';
+                touchCircle.style.left = touch.clientX + 'px';
+                touchCircle.style.top = touch.clientY + 'px';
+            }
+        }, { passive: true });
+
+        touchArea.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier !== lookTouchId) continue;
+
+                const deltaX = touch.clientX - lastTouchX;
+                const deltaY = touch.clientY - lastTouchY;
+
+                // Rotate camera
+                this.camera.rotation.y -= deltaX * lookSensitivity;
+                this.camera.rotation.x -= deltaY * lookSensitivity;
+                this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+
+                // Move the circle to follow finger
+                touchCircle.style.left = touch.clientX + 'px';
+                touchCircle.style.top = touch.clientY + 'px';
+            }
+        }, { passive: true });
+
+        const endLookTouch = (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === lookTouchId) {
+                    lookTouchId = null;
+                    touchCircle.style.display = 'none';
+                }
             }
         };
 
-        const handleTouchMove = (e) => {
-            if (lastTouchX === 0) return;
-            const touch = e.touches[0];
-            
-            const deltaX = touch.clientX - lastTouchX;
-            const deltaY = touch.clientY - lastTouchY;
-            
-            // Apply rotation immediately
-            this.player.onMobileLook({
-                vector: {
-                    x: deltaX * 0.5,
-                    y: deltaY * 0.5
-                }
-            });
+        touchArea.addEventListener('touchend', endLookTouch, { passive: true });
+        touchArea.addEventListener('touchcancel', endLookTouch, { passive: true });
+    }
 
-            lastTouchX = touch.clientX;
-            lastTouchY = touch.clientY;
-            
-            // Reset after update
-            setTimeout(() => {
-                this.player.mobileLook.x = 0;
-                this.player.mobileLook.y = 0;
-            }, 16);
-        };
-
-        const handleTouchEnd = () => {
-            lastTouchX = 0;
-            lastTouchY = 0;
-            this.player.onMobileLookEnd();
-        };
-
-        window.addEventListener('touchstart', handleTouchStart, { passive: false });
-        window.addEventListener('touchmove', handleTouchMove, { passive: false });
-        window.addEventListener('touchend', handleTouchEnd);
-
-        // Buttons
+    initMobileButtons() {
         const btnJump = document.getElementById('btn-jump');
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
@@ -195,9 +232,7 @@ class Game {
         if (btnFullscreen) {
             btnFullscreen.addEventListener('click', () => {
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                        console.warn(`Error attempting to enable full-screen mode: ${err.message}`);
-                    });
+                    document.documentElement.requestFullscreen().catch(() => {});
                 } else {
                     document.exitFullscreen();
                 }
@@ -213,6 +248,7 @@ class Game {
         if (btnDown) btnDown.style.display = display;
     }
 
+    // ===== GAME SYSTEMS =====
     setupLighting() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         this.scene.add(ambientLight);
@@ -255,10 +291,12 @@ class Game {
         if (startBtn) {
             startBtn.style.display = 'block';
             startBtn.onclick = () => {
-                this.renderer.domElement.requestPointerLock();
+                if (!this.isMobile) {
+                    this.renderer.domElement.requestPointerLock();
+                }
                 const loader = document.getElementById('loading-screen');
                 if (loader) loader.style.opacity = '0';
-                setTimeout(() => loader.remove(), 500);
+                setTimeout(() => { if (loader) loader.remove(); }, 500);
             };
         }
     }
@@ -284,15 +322,15 @@ class Game {
                 const preview = document.createElement('div');
                 preview.className = 'slot-icon';
                 preview.style.backgroundColor = block.color;
-                preview.style.boxShadow = 'inset -4px -4px 0 rgba(0,0,0,0.3), inset 4px 4px 0 rgba(255,255,255,0.3)';
+                preview.style.boxShadow = 'inset -3px -3px 0 rgba(0,0,0,0.3), inset 3px 3px 0 rgba(255,255,255,0.3)';
                 slot.appendChild(preview);
 
-                const selectThisSlot = (e) => {
-                    e.preventDefault();
+                // Touch + click for mobile block selection
+                slot.addEventListener('click', () => this.selectSlot(i));
+                slot.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
                     this.selectSlot(i);
-                };
-                slot.onclick = selectThisSlot;
-                slot.ontouchstart = selectThisSlot;
+                });
             }
         });
 
@@ -307,14 +345,14 @@ class Game {
 
     selectSlot(index) {
         const slots = document.querySelectorAll('.slot');
+        const blockList = [
+            BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE, 
+            BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES, 
+            BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
+        ];
         slots.forEach(s => s.classList.remove('active'));
         if (slots[index]) {
             slots[index].classList.add('active');
-            const blockList = [
-                BLOCK_TYPES.GRASS, BLOCK_TYPES.DIRT, BLOCK_TYPES.STONE, 
-                BLOCK_TYPES.COBBLESTONE, BLOCK_TYPES.OAK_LOG, BLOCK_TYPES.OAK_LEAVES, 
-                BLOCK_TYPES.GLASS, BLOCK_TYPES.BRICKS, BLOCK_TYPES.SAND
-            ];
             this.player.selectedBlock = blockList[index];
         }
     }
@@ -322,7 +360,7 @@ class Game {
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.renderer) this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     animate() {
