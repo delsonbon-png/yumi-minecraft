@@ -112,10 +112,12 @@ body {
 }
 
 #hotbar-container {
-    align-self: center;
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
     pointer-events: auto;
-    margin-bottom: 5px;
-    z-index: 40;
+    z-index: 100;
 }
 
 .hotbar {
@@ -243,36 +245,31 @@ body {
 /* Mobile Controls Overlay */
 #mobile-controls {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
     z-index: 50;
-    display: flex;
-    justify-content: space-between;
 }
 
-#joystick-move, #joystick-look {
-    width: 120px;
-    height: 120px;
+#joystick-move {
     position: absolute;
-    bottom: 30px;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
     pointer-events: auto;
     touch-action: none;
-    z-index: 60;
 }
-
-#joystick-move { left: 30px; }
-#joystick-look { right: 30px; }
 
 #mobile-buttons {
     position: absolute;
-    bottom: 40px;
-    right: 180px; /* Moved left to avoid right joystick */
+    bottom: 20%;
+    right: 30px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     pointer-events: auto;
     z-index: 70;
 }

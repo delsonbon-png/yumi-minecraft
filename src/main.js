@@ -78,30 +78,18 @@ class Game {
     }
 
     initMobileControls() {
-        const moveContainer = document.getElementById('joystick-move');
-        const lookContainer = document.getElementById('joystick-look');
-
-        // Clean up any existing instances
         if (this.moveJoystick) this.moveJoystick.destroy();
-        if (this.lookJoystick) this.lookJoystick.destroy();
 
+        const moveContainer = document.getElementById('joystick-move');
+
+        // Dynamic Joystick on the left side
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
+            mode: 'dynamic',
             color: 'white',
             size: 100
         });
 
-        this.lookJoystick = nipplejs.create({
-            zone: lookContainer,
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            color: 'rgba(255, 255, 255, 0.5)',
-            size: 100
-        });
-
-        // Use direct vector updates
         this.moveJoystick.on('move', (evt, data) => {
             if (data && data.vector) {
                 this.player.mobileMove.x = data.vector.x;
@@ -112,17 +100,54 @@ class Game {
             this.player.mobileMove.x = 0;
             this.player.mobileMove.y = 0;
         });
-        
-        this.lookJoystick.on('move', (evt, data) => {
-            if (data && data.vector) {
-                this.player.mobileLook.x = data.vector.x;
-                this.player.mobileLook.y = data.vector.y;
+
+        // Touch Drag to Look (Right side or middle)
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        const handleTouchStart = (e) => {
+            const touch = e.touches[0];
+            // Start dragging if not on a button/hotbar (handled by z-index or manual check)
+            if (touch.clientX > window.innerWidth / 2) {
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
             }
-        });
-        this.lookJoystick.on('end', () => {
-            this.player.mobileLook.x = 0;
-            this.player.mobileLook.y = 0;
-        });
+        };
+
+        const handleTouchMove = (e) => {
+            if (lastTouchX === 0) return;
+            const touch = e.touches[0];
+            
+            const deltaX = touch.clientX - lastTouchX;
+            const deltaY = touch.clientY - lastTouchY;
+            
+            // Apply rotation immediately
+            this.player.onMobileLook({
+                vector: {
+                    x: deltaX * 0.5,
+                    y: deltaY * 0.5
+                }
+            });
+
+            lastTouchX = touch.clientX;
+            lastTouchY = touch.clientY;
+            
+            // Reset after update
+            setTimeout(() => {
+                this.player.mobileLook.x = 0;
+                this.player.mobileLook.y = 0;
+            }, 16);
+        };
+
+        const handleTouchEnd = () => {
+            lastTouchX = 0;
+            lastTouchY = 0;
+            this.player.onMobileLookEnd();
+        };
+
+        window.addEventListener('touchstart', handleTouchStart, { passive: false });
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+        window.addEventListener('touchend', handleTouchEnd);
 
         // Buttons
         const btnJump = document.getElementById('btn-jump');
@@ -262,7 +287,6 @@ class Game {
                 preview.style.boxShadow = 'inset -4px -4px 0 rgba(0,0,0,0.3), inset 4px 4px 0 rgba(255,255,255,0.3)';
                 slot.appendChild(preview);
 
-                // Touch and Click for Mobile selection
                 const selectThisSlot = (e) => {
                     e.preventDefault();
                     this.selectSlot(i);
@@ -278,7 +302,7 @@ class Game {
             }
         });
         
-        this.selectSlot(0); // Set initial slot
+        this.selectSlot(0);
     }
 
     selectSlot(index) {
