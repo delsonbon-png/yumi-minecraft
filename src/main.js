@@ -252,7 +252,14 @@ class Game {
                 e.stopPropagation();
                 console.log("Start button clicked!");
                 
-                if (!this.isMobile && this.renderer.domElement.requestPointerLock) {
+                if (this.isMobile) {
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(() => {});
+                    }
+                    if (screen.orientation && screen.orientation.lock) {
+                        screen.orientation.lock('landscape').catch(() => {});
+                    }
+                } else if (this.renderer.domElement.requestPointerLock) {
                     this.renderer.domElement.requestPointerLock();
                 }
                 const loader = document.getElementById('loading-screen');
