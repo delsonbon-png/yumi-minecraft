@@ -34,9 +34,13 @@ class Game {
                 this.renderer = new THREE.WebGLRenderer({
                     canvas: canvas,
                     antialias: !this.isMobile,
-                    alpha: true,
-                    powerPreference: "high-performance"
+                    alpha: true
                 });
+                
+                if (!this.renderer.getContext()) {
+                    throw new Error("Seu navegador não suporta WebGL ou ele está desativado.");
+                }
+
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.setPixelRatio(this.isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
                 
@@ -49,11 +53,7 @@ class Game {
                     const mobileUI = document.getElementById('mobile-controls');
                     if (mobileUI) mobileUI.style.display = 'flex';
                     document.getElementById('instructions').style.display = 'none';
-                    
-                    setTimeout(() => {
-                        this.initMobileControls();
-                        this.updateFlyButtons();
-                    }, 100);
+                    this.initMobileControls(); // Initial init
                 }
                 
                 this.animate();
@@ -69,6 +69,8 @@ class Game {
     showError(err) {
         console.error("Game Initialization Error:", err);
         const errorLog = document.getElementById('error-log');
+        const loadingStatus = document.getElementById('loading-status');
+        if (loadingStatus) loadingStatus.style.display = 'none';
         if (errorLog) {
             errorLog.style.display = 'block';
             errorLog.innerText = "Erro: " + err.message;
@@ -79,45 +81,49 @@ class Game {
         const moveContainer = document.getElementById('joystick-move');
         const indicator = document.getElementById('touch-indicator');
 
-        // 1. Minecraft-style Square D-Pad
+        // Prevent duplicate managers
         if (this.moveJoystick) this.moveJoystick.destroy();
+
         this.moveJoystick = nipplejs.create({
             zone: moveContainer,
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'rgba(255, 255, 255, 0.4)',
             size: 150,
-            shape: 'square' // Minecraft style
+            shape: 'square'
         });
 
+        this.moveJoystick.off('move');
         this.moveJoystick.on('move', (evt, data) => {
             if (data && data.vector) {
                 this.player.mobileMove.x = data.vector.x;
                 this.player.mobileMove.y = -data.vector.y;
             }
         });
+
+        this.moveJoystick.off('end');
         this.moveJoystick.on('end', () => {
             this.player.mobileMove.x = 0;
             this.player.mobileMove.y = 0;
         });
 
-        // 2. Free Look & Interaction Logic
+        // Use global handlers if not already setup (to avoid duplicates)
+        if (this._touchHandlersSetup) return;
+        this._touchHandlersSetup = true;
+
         let lastTouch = null;
         let touchStartTime = 0;
         let longPressTimer = null;
 
         const handleTouchStart = (e) => {
             const touch = e.touches[0];
-            
-            // IF touching the joystick area, DO NOT prevent default and let nipplejs handle it
             const isJoystick = e.target.closest('#joystick-move');
-            if (isJoystick || e.target.closest('.mobile-btn') || e.target.closest('.slot')) {
-                return;
-            }
+            const isHotbar = e.target.closest('#hotbar-container');
+            const isButton = e.target.closest('.mobile-btn');
 
-            e.preventDefault(); // Only prevent default if we are starting a "look" action
+            if (isJoystick || isHotbar || isButton) return;
 
-            // Interaction: Start Long Press Timer for Breaking
+            e.preventDefault();
             touchStartTime = performance.now();
             this.player.isLongPress = false;
             
@@ -127,64 +133,49 @@ class Game {
                 this.player.onLongPressStart();
             }, 1500);
 
-            // Visual Indicator
             if (indicator) {
                 indicator.style.display = 'block';
                 indicator.style.left = `${touch.clientX - 30}px`;
                 indicator.style.top = `${touch.clientY - 30}px`;
             }
-            
             lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
         const handleTouchMove = (e) => {
             if (!lastTouch) return;
             const touch = e.touches[0];
-            
             const dx = touch.clientX - lastTouch.x;
             const dy = touch.clientY - lastTouch.y;
             
-            this.player.onMobileLook({ 
-                vector: { x: dx * 0.5, y: dy * 0.5 } 
-            });
+            this.player.onMobileLook({ vector: { x: dx * 0.5, y: dy * 0.5 } });
             
             if (indicator) {
                 indicator.style.left = `${touch.clientX - 30}px`;
                 indicator.style.top = `${touch.clientY - 30}px`;
             }
-            
             lastTouch = { x: touch.clientX, y: touch.clientY };
         };
 
-        const handleTouchEnd = (e) => {
-            if (!lastTouch && e.touches.length > 0) return;
-            
+        const handleTouchEnd = () => {
             clearTimeout(longPressTimer);
             if (indicator) indicator.style.display = 'none';
-
             const pressDuration = performance.now() - touchStartTime;
-            
             if (lastTouch && !this.player.isLongPress && pressDuration < 300) {
                 this.player.onMobileTap();
             }
-            
             this.player.onLongPressEnd();
             lastTouch = null;
         };
 
-        // Attach to document for true full-screen coverage
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
         document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-        // Buttons
+        // Restore Buttons
         const btnJump = document.getElementById('btn-jump');
-        const btnUp = document.getElementById('btn-up');
-        const btnDown = document.getElementById('btn-down');
-
         if (btnJump) {
             btnJump.addEventListener('touchstart', (e) => {
-                e.stopPropagation(); // Don't trigger look
+                e.stopPropagation();
                 this.player.keys['Space'] = true;
                 const now = performance.now();
                 if (now - this.player.lastSpacePress < 300) {
@@ -255,19 +246,19 @@ class Game {
             }
         }
         
+        // Ensure 100% visual
+        if (loaderFill) loaderFill.style.width = '100%';
+        if (loaderPercentage) loaderPercentage.innerText = '100';
+
         const startBtn = document.getElementById('start-btn');
         if (startBtn) {
             startBtn.style.display = 'block';
             startBtn.onclick = () => {
-                if (!this.isMobile && this.renderer.domElement.requestPointerLock) {
-                    this.renderer.domElement.requestPointerLock();
-                }
                 const loader = document.getElementById('loading-screen');
                 if (loader) loader.remove();
                 
-                // Final check to ensure UI is ready
-                if (this.isMobile) {
-                    this.initMobileControls();
+                if (!this.isMobile && this.renderer.domElement.requestPointerLock) {
+                    this.renderer.domElement.requestPointerLock();
                 }
             };
         }
